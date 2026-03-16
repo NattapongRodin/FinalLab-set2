@@ -19,5 +19,7 @@ CREATE TABLE IF NOT EXISTS logs (
 );
 
 INSERT INTO users (username, email, password_hash, role) VALUES
+  ('alice', 'alice@lab.local', '$2b$10$teD3O9bMu5sn3Cepq461AOnVwsLCUDXAF2bxY4LPUzX2o.BrvxUiy', 'member'),
+  ('bob',   'bob@lab.local',   '$2b$10$i0lGeLI5U1Tebm/BKTn2g.4lzidsLFTW1TgWUKWY7qm4FsAW.BVCq',   'member'),
   ('admin', 'admin@lab.local', '$2b$10$okyFJxZ0iXJiyrS4zDKPzuWsql.anN7nADdWaPIvawc0adhKHQUDK', 'admin')
 ON CONFLICT (username) DO NOTHING;
