@@ -1,3 +1,33 @@
+// เพิ่มไว้ด้านบนสุดของไฟล์
+const { Pool } = require('pg');
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+
+// ฟังก์ชันสร้างตารางอัตโนมัติ
+async function initDB() {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        username VARCHAR(50) UNIQUE NOT NULL,
+        email VARCHAR(100) UNIQUE NOT NULL,
+        password_hash VARCHAR(255) NOT NULL,
+        role VARCHAR(20) DEFAULT 'member',
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+      
+      -- สร้าง User Admin เริ่มต้น
+      INSERT INTO users (username, email, password_hash, role)
+      VALUES ('admin', 'admin@lab.local', '$2b$10$okyFJxZ0iXJiyrS4zDKPzuWsql.anN7nADdWaPIvawc0adhKHQUDK', 'admin')
+      ON CONFLICT (username) DO NOTHING;
+    `);
+    console.log("✅ Database tables initialized");
+  } catch (err) {
+    console.error("❌ Failed to init DB:", err);
+  }
+}
+
+initDB(); // เรียกใช้งานทันทีที่เปิดเครื่อง
+
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const { pool } = require('../db/db');
