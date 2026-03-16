@@ -1,0 +1,474 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>📊 Log Dashboard</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: "Segoe UI", system-ui, sans-serif;
+        background: #0f172a;
+        color: #e2e8f0;
+      }
+
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 24px;
+      }
+
+      .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+      }
+
+      .title {
+        font-size: 28px;
+        font-weight: 700;
+      }
+
+      .actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      button,
+      a.btn {
+        border: none;
+        border-radius: 10px;
+        padding: 10px 14px;
+        background: #3b82f6;
+        color: white;
+        cursor: pointer;
+        font-weight: 600;
+        text-decoration: none;
+        display: inline-block;
+      }
+
+      button.secondary,
+      a.btn.secondary {
+        background: #334155;
+      }
+
+      .card {
+        background: #1e293b;
+        border: 1px solid #334155;
+        border-radius: 14px;
+        padding: 18px;
+        margin-bottom: 16px;
+      }
+
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+        margin-bottom: 18px;
+      }
+
+      .stat {
+        background: #1e293b;
+        border: 1px solid #334155;
+        border-radius: 12px;
+        padding: 16px;
+      }
+
+      .stat .label {
+        color: #94a3b8;
+        font-size: 13px;
+      }
+
+      .stat .value {
+        font-size: 28px;
+        font-weight: 700;
+        margin-top: 6px;
+      }
+
+      .filters {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-bottom: 16px;
+      }
+
+      input,
+      select {
+        background: #0f172a;
+        color: #e2e8f0;
+        border: 1px solid #334155;
+        border-radius: 10px;
+        padding: 10px 12px;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+
+      th,
+      td {
+        text-align: left;
+        padding: 12px 10px;
+        border-bottom: 1px solid #334155;
+        vertical-align: top;
+        font-size: 14px;
+      }
+
+      th {
+        color: #94a3b8;
+        font-size: 12px;
+        text-transform: uppercase;
+      }
+
+      .ok {
+        color: #22c55e;
+        font-weight: 700;
+      }
+
+      .bad {
+        color: #ef4444;
+        font-weight: 700;
+      }
+
+      .mono {
+        font-family: Consolas, monospace;
+        word-break: break-all;
+      }
+
+      .empty {
+        text-align: center;
+        color: #94a3b8;
+        padding: 40px 0;
+      }
+
+      pre {
+        margin: 0;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+
+      .forbidden-wrap {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+      }
+
+      .forbidden-card {
+        width: 100%;
+        max-width: 520px;
+        background: #1e293b;
+        border: 1px solid #334155;
+        border-radius: 16px;
+        padding: 28px;
+        text-align: center;
+      }
+
+      .forbidden-card h1 {
+        font-size: 28px;
+        margin-bottom: 10px;
+      }
+
+      .forbidden-card p {
+        color: #94a3b8;
+        margin-bottom: 16px;
+      }
+
+      .badge {
+        display: inline-block;
+        padding: 3px 8px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .badge-ok {
+        background: rgba(34, 197, 94, 0.15);
+        color: #4ade80;
+      }
+
+      .badge-bad {
+        background: rgba(239, 68, 68, 0.15);
+        color: #fca5a5;
+      }
+
+      .muted {
+        color: #94a3b8;
+      }
+
+      @media (max-width: 900px) {
+        .stats {
+          grid-template-columns: repeat(2, 1fr);
+        }
+      }
+
+      @media (max-width: 640px) {
+        .stats {
+          grid-template-columns: 1fr;
+        }
+
+        table,
+        thead,
+        tbody,
+        th,
+        td,
+        tr {
+          display: block;
+        }
+
+        th {
+          display: none;
+        }
+
+        tr {
+          border-bottom: 1px solid #334155;
+          padding: 8px 0;
+        }
+
+        td {
+          border: none;
+          padding: 6px 0;
+        }
+
+        td::before {
+          content: attr(data-label) ": ";
+          color: #94a3b8;
+          font-weight: 600;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="forbidden-page" class="forbidden-wrap" style="display: none">
+      <div class="forbidden-card">
+        <h1>🚫 Admin only</h1>
+        <p>หน้านี้เปิดได้เฉพาะผู้ใช้ที่มี role เป็น admin</p>
+        <a href="index.html" class="btn secondary">← กลับหน้า Task Board</a>
+      </div>
+    </div>
+
+    <div id="dashboard-page" style="display: none">
+      <div class="container">
+        <div class="header">
+          <div class="title">📊 Log Dashboard</div>
+          <div class="actions">
+            <button onclick="refreshLogs()">Refresh</button>
+            <button class="secondary" onclick="clearLogs()">Clear Logs</button>
+            <a href="index.html" class="btn secondary">← กลับหน้า Task Board</a>
+          </div>
+        </div>
+
+        <div class="stats">
+          <div class="stat">
+            <div class="label">ทั้งหมด</div>
+            <div class="value" id="st-total">0</div>
+          </div>
+          <div class="stat">
+            <div class="label">Success</div>
+            <div class="value" id="st-ok">0</div>
+          </div>
+          <div class="stat">
+            <div class="label">Error</div>
+            <div class="value" id="st-bad">0</div>
+          </div>
+          <div class="stat">
+            <div class="label">ล่าสุด</div>
+            <div class="value" id="st-last" style="font-size: 16px">-</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="filters">
+            <input
+              id="search"
+              type="text"
+              placeholder="ค้นหา URL หรือ method"
+              oninput="render()"
+            />
+
+            <select id="statusFilter" onchange="render()">
+              <option value="ALL">ทุกสถานะ</option>
+              <option value="OK">Success</option>
+              <option value="BAD">Error</option>
+            </select>
+
+            <select id="methodFilter" onchange="render()">
+              <option value="ALL">ทุก method</option>
+              <option value="GET">GET</option>
+              <option value="POST">POST</option>
+              <option value="PUT">PUT</option>
+              <option value="DELETE">DELETE</option>
+            </select>
+          </div>
+
+          <div id="table-wrap"></div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const LOG_KEY = "taskboard_api_log";
+      const TOKEN_KEY = "jwt_token";
+      let logs = [];
+
+      function decodeJwtPayload(token) {
+        try {
+          const parts = token.split(".");
+          if (parts.length !== 3) return null;
+
+          const base64 = parts[1]
+            .replace(/-/g, "+")
+            .replace(/_/g, "/");
+
+          return JSON.parse(atob(base64));
+        } catch {
+          return null;
+        }
+      }
+
+      function isAdminToken() {
+        const token = localStorage.getItem(TOKEN_KEY);
+        if (!token) return false;
+
+        const payload = decodeJwtPayload(token);
+        if (!payload) return false;
+
+        if (payload.exp && Date.now() >= payload.exp * 1000) return false;
+
+        return payload.role === "admin";
+      }
+
+      function showForbidden() {
+        document.getElementById("forbidden-page").style.display = "flex";
+        document.getElementById("dashboard-page").style.display = "none";
+      }
+
+      function showDashboard() {
+        document.getElementById("forbidden-page").style.display = "none";
+        document.getElementById("dashboard-page").style.display = "block";
+      }
+
+      function loadLogs() {
+        logs = JSON.parse(localStorage.getItem(LOG_KEY) || "[]");
+      }
+
+      function formatDate(iso) {
+        try {
+          return new Date(iso).toLocaleString("th-TH");
+        } catch {
+          return iso || "-";
+        }
+      }
+
+      function refreshStats(filtered) {
+        document.getElementById("st-total").textContent = filtered.length;
+        document.getElementById("st-ok").textContent = filtered.filter((x) => x.ok).length;
+        document.getElementById("st-bad").textContent = filtered.filter((x) => !x.ok).length;
+        document.getElementById("st-last").textContent = filtered.length
+          ? formatDate(filtered[0].time)
+          : "-";
+      }
+
+      function render() {
+        const q = document.getElementById("search").value.trim().toLowerCase();
+        const statusFilter = document.getElementById("statusFilter").value;
+        const methodFilter = document.getElementById("methodFilter").value;
+
+        const filtered = logs.filter((x) => {
+          const matchQ =
+            !q ||
+            (x.url || "").toLowerCase().includes(q) ||
+            (x.method || "").toLowerCase().includes(q);
+
+          const matchStatus =
+            statusFilter === "ALL" ||
+            (statusFilter === "OK" && x.ok) ||
+            (statusFilter === "BAD" && !x.ok);
+
+          const matchMethod =
+            methodFilter === "ALL" || x.method === methodFilter;
+
+          return matchQ && matchStatus && matchMethod;
+        });
+
+        refreshStats(filtered);
+
+        const wrap = document.getElementById("table-wrap");
+
+        if (!filtered.length) {
+          wrap.innerHTML = '<div class="empty">ยังไม่มี log</div>';
+          return;
+        }
+
+        wrap.innerHTML = `
+          <table>
+            <thead>
+              <tr>
+                <th>เวลา</th>
+                <th>Method</th>
+                <th>URL</th>
+                <th>Status</th>
+                <th>Duration</th>
+                <th>Body</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${filtered
+                .map(
+                  (x) => `
+                    <tr>
+                      <td data-label="เวลา">${formatDate(x.time)}</td>
+                      <td data-label="Method"><strong>${escapeHtml(x.method || "-")}</strong></td>
+                      <td data-label="URL" class="mono">${escapeHtml(x.url || "-")}</td>
+                      <td data-label="Status">
+                        <span class="badge ${x.ok ? "badge-ok" : "badge-bad"}">${x.status}</span>
+                      </td>
+                      <td data-label="Duration">${x.duration ?? 0} ms</td>
+                      <td data-label="Body"><pre>${escapeHtml(JSON.stringify(x.body ?? {}, null, 2))}</pre></td>
+                    </tr>
+                  `,
+                )
+                .join("")}
+            </tbody>
+          </table>
+        `;
+      }
+
+      function clearLogs() {
+        localStorage.removeItem(LOG_KEY);
+        loadLogs();
+        render();
+      }
+
+      function refreshLogs() {
+        loadLogs();
+        render();
+      }
+
+      function escapeHtml(s) {
+        return String(s)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;");
+      }
+
+      if (!isAdminToken()) {
+        showForbidden();
+      } else {
+        showDashboard();
+        loadLogs();
+        render();
+      }
+    </script>
+  </body>
+</html>
