@@ -1,10 +1,14 @@
-// เพิ่มไว้ด้านบนสุดของไฟล์
-const { Pool } = require('pg');
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const express = require('express');
+const bcrypt = require('bcryptjs');
+const { pool } = require('../db/db');
+const { generateToken, verifyToken } = require('../middleware/jwtUtils');
 
-// ฟังก์ชันสร้างตารางอัตโนมัติ
+const router = express.Router();
+
+// --- ส่วนที่เพิ่มเพื่อสร้างตารางอัตโนมัติ (Auto-Migration) ---
 async function initDB() {
   try {
+    console.log("⏳ [auth-service] Checking/Initializing database tables...");
     await pool.query(`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
@@ -12,28 +16,24 @@ async function initDB() {
         email VARCHAR(100) UNIQUE NOT NULL,
         password_hash VARCHAR(255) NOT NULL,
         role VARCHAR(20) DEFAULT 'member',
-        created_at TIMESTAMP DEFAULT NOW()
+        created_at TIMESTAMP DEFAULT NOW(),
+        last_login TIMESTAMP
       );
       
-      -- สร้าง User Admin เริ่มต้น
+      -- สร้าง User Admin เริ่มต้น (password: adminpass)
       INSERT INTO users (username, email, password_hash, role)
       VALUES ('admin', 'admin@lab.local', '$2b$10$okyFJxZ0iXJiyrS4zDKPzuWsql.anN7nADdWaPIvawc0adhKHQUDK', 'admin')
       ON CONFLICT (username) DO NOTHING;
     `);
-    console.log("✅ Database tables initialized");
+    console.log("✅ [auth-service] Database tables initialized successfully");
   } catch (err) {
-    console.error("❌ Failed to init DB:", err);
+    console.error("❌ [auth-service] Failed to init DB:", err);
   }
 }
 
-initDB(); // เรียกใช้งานทันทีที่เปิดเครื่อง
-
-const express = require('express');
-const bcrypt = require('bcryptjs');
-const { pool } = require('../db/db');
-const { generateToken, verifyToken } = require('../middleware/jwtUtils');
-
-const router = express.Router();
+// เรียกทำงานทันทีที่เครื่องติด
+initDB();
+// -------------------------------------------------------
 
 // health
 router.get('/health', (req, res) => {
