@@ -1,5 +1,5 @@
 window.APP_CONFIG = {
-  AUTH_URL: "http://localhost:3001",
-  TASK_URL: "http://localhost:3002",
-  USER_URL: "http://localhost:3003",
+  AUTH_URL: "https://auth-service-production-97c0.up.railway.app",
+  TASK_URL: "https://task-service-production-adbe.up.railway.app",
+  USER_URL: "https://user-service-production-8d7c.up.railway.app",
 };
