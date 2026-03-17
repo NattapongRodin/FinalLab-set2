@@ -4,21 +4,39 @@ const requireAuth = require('../middleware/authMiddleware');
 
 const router = express.Router();
 
+// health check
 router.get('/health', (req, res) => {
   res.json({ status: 'ok', service: 'user-service' });
 });
 
+// ใช้ auth หลังจากนี้
 router.use(requireAuth);
 
+// 🔥 ฟังก์ชันหลัก (แก้ครบแล้ว)
 async function ensureProfile(user) {
   try {
 
-    const userId = String(user.sub || user.id);
+    const userId = String(user.sub || user.id || '');
 
     const username = user.username || 'user';
     const email = user.email || '';
     const role = user.role || 'user';
 
+    // ✅ สร้าง table ถ้ายังไม่มี
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS user_profiles (
+        user_id TEXT PRIMARY KEY,
+        username TEXT,
+        email TEXT,
+        role TEXT,
+        display_name TEXT,
+        bio TEXT,
+        avatar_url TEXT,
+        updated_at TIMESTAMP
+      )
+    `);
+
+    // ✅ หา user
     const existing = await pool.query(
       'SELECT * FROM user_profiles WHERE user_id = $1',
       [userId]
@@ -28,6 +46,7 @@ async function ensureProfile(user) {
       return existing.rows[0];
     }
 
+    // ✅ ถ้าไม่มี → สร้างใหม่
     const created = await pool.query(
       `INSERT INTO user_profiles
       (user_id, username, email, role, display_name, bio, avatar_url, updated_at)
@@ -52,28 +71,23 @@ async function ensureProfile(user) {
   }
 }
 
-// GET /api/users/me
+// GET profile
 router.get('/me', async (req, res) => {
   try {
-
     const profile = await ensureProfile(req.user);
-
     res.json({ profile });
-
   } catch (err) {
     console.error("GET /me error:", err);
     res.status(500).json({ error: 'Server error' });
   }
 });
 
-// PUT /api/users/me
+// UPDATE profile
 router.put('/me', async (req, res) => {
-
-  const { display_name, bio, avatar_url } = req.body;
-
   try {
 
-    const userId = String(req.user.sub || req.user.id);
+    const userId = String(req.user.sub || req.user.id || '');
+    const { display_name, bio, avatar_url } = req.body;
 
     await ensureProfile(req.user);
 
@@ -107,15 +121,13 @@ router.put('/me', async (req, res) => {
   }
 });
 
-// GET /api/users  admin only
+// admin only
 router.get('/', async (req, res) => {
-
   if (req.user.role !== 'admin') {
     return res.status(403).json({ error: 'Forbidden' });
   }
 
   try {
-
     const result = await pool.query(
       'SELECT * FROM user_profiles ORDER BY user_id ASC'
     );
