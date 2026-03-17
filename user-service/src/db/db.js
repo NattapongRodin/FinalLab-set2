@@ -13,9 +13,9 @@ pool.on('error', (err) => {
   console.error('[user-service] Postgres error:', err);
 });
 
-// สร้าง table ถ้ายังไม่มี
 async function initDB() {
   try {
+
     await pool.query(`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
@@ -26,9 +26,19 @@ async function initDB() {
       );
     `);
 
-    console.log('[user-service] Users table ready');
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS profiles (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+        display_name VARCHAR(100),
+        bio TEXT
+      );
+    `);
+
+    console.log('[user-service] Users & Profiles tables ready');
+
   } catch (err) {
-    console.error('[user-service] Error creating table:', err);
+    console.error('[user-service] DB init error:', err);
   }
 }
 
