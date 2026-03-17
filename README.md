@@ -1,7 +1,7 @@
 # ENGSE207 Software Architecture  
 ## README — Final Lab Set 1: Microservices + HTTPS + Lightweight Logging
 
-> เอกสารฉบับนี้ใช้เป็น `README.md` สำหรับ repository ของ **Final Lab Set 1**  
+> เอกสารฉบับนี้ใช้เป็น `README.md` สำหรับ repository ของ **Final Lab Set 2**  
 > นักศึกษาสามารถปรับแก้รายละเอียด เช่น ชื่อสมาชิก, ภาพ architecture, URL หรือคำอธิบายเพิ่มเติม ให้สอดคล้องกับงานจริงของกลุ่ม
 
 ---
