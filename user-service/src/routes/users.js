@@ -11,9 +11,12 @@ router.get('/health', (req, res) => {
 router.use(requireAuth);
 
 async function ensureProfile(user) {
+
+  const userId = user.sub || user.id;
+
   const existing = await pool.query(
     'SELECT * FROM user_profiles WHERE user_id = $1',
-    [user.sub]
+    [userId]
   );
 
   if (existing.rowCount > 0) {
@@ -23,14 +26,14 @@ async function ensureProfile(user) {
   const created = await pool.query(
     `INSERT INTO user_profiles
       (user_id, username, email, role, display_name, bio, avatar_url, updated_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+     VALUES ($1,$2,$3,$4,$5,$6,$7,NOW())
      RETURNING *`,
     [
-      user.sub,
+      userId,
       user.username,
       user.email,
       user.role,
-      user.username,
+      user.username || '',
       '',
       ''
     ]
@@ -42,8 +45,11 @@ async function ensureProfile(user) {
 // GET /api/users/me
 router.get('/me', async (req, res) => {
   try {
+
     const profile = await ensureProfile(req.user);
+
     res.json({ profile });
+
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
@@ -52,9 +58,13 @@ router.get('/me', async (req, res) => {
 
 // PUT /api/users/me
 router.put('/me', async (req, res) => {
+
   const { display_name, bio, avatar_url } = req.body;
 
   try {
+
+    const userId = req.user.sub || req.user.id;
+
     await ensureProfile(req.user);
 
     const result = await pool.query(
@@ -75,11 +85,12 @@ router.put('/me', async (req, res) => {
         req.user.username,
         req.user.email,
         req.user.role,
-        req.user.sub
+        userId
       ]
     );
 
     res.json({ profile: result.rows[0] });
+
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
@@ -88,11 +99,13 @@ router.put('/me', async (req, res) => {
 
 // GET /api/users  admin only
 router.get('/', async (req, res) => {
+
   if (req.user.role !== 'admin') {
     return res.status(403).json({ error: 'Forbidden' });
   }
 
   try {
+
     const result = await pool.query(
       'SELECT * FROM user_profiles ORDER BY user_id ASC'
     );
@@ -101,6 +114,7 @@ router.get('/', async (req, res) => {
       users: result.rows,
       count: result.rowCount
     });
+
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
