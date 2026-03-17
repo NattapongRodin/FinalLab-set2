@@ -299,6 +299,7 @@
         color: var(--red);
         background: rgba(239, 68, 68, 0.1);
       }
+
       .main-content {
         flex: 1;
         overflow-y: auto;
@@ -599,7 +600,7 @@
         border: 1px solid var(--border);
         border-radius: var(--radius);
         padding: 2rem;
-        max-width: 600px;
+        max-width: 700px;
       }
       .profile-header {
         display: flex;
@@ -805,7 +806,7 @@
         <div id="register-form" class="hidden">
           <div class="form-group">
             <label>Username</label>
-            <input id="register-username" type="text" placeholder="เช่น moodang" />
+            <input id="register-username" type="text" placeholder="เช่น prim" />
           </div>
           <div class="form-group">
             <label>Email</label>
@@ -821,7 +822,7 @@
         <div id="auth-msg"></div>
 
         <div class="auth-hint" style="margin-top: 1rem; padding: 0.75rem; background: rgba(59, 130, 246, 0.1); border-radius: 0.5rem; font-size: 0.82rem;">
-          <strong>🔑 Test User:</strong><br />
+          <strong>🔑 Seed User:</strong><br />
           admin@lab.local / adminpass (admin)
         </div>
       </div>
@@ -950,6 +951,33 @@
                 </div>
               </div>
 
+              <div style="margin-top: 1.5rem">
+                <h3 style="margin-bottom: 1rem; font-size: 1rem">✏️ Edit Profile</h3>
+
+                <div class="form-group">
+                  <label>Display Name</label>
+                  <input id="profile-display-name" type="text" placeholder="ชื่อที่ต้องการแสดง" />
+                </div>
+
+                <div class="form-group">
+                  <label>Bio</label>
+                  <textarea
+                    id="profile-bio"
+                    placeholder="เขียน bio สั้น ๆ"
+                    style="width: 100%; min-height: 100px; padding: 0.75rem 1rem; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text);"
+                  ></textarea>
+                </div>
+
+                <div class="form-group">
+                  <label>Avatar URL</label>
+                  <input id="profile-avatar-url" type="text" placeholder="https://example.com/avatar.png" />
+                </div>
+
+                <button class="btn-primary" style="max-width: 220px" onclick="updateProfile()">
+                  💾 บันทึก Profile
+                </button>
+              </div>
+
               <div class="jwt-panel">
                 <h3>🔍 JWT Token Inspector</h3>
                 <div class="jwt-parts" id="jwt-parts"></div>
@@ -957,7 +985,9 @@
                 <div class="token-exp" id="token-exp"></div>
               </div>
 
-              <a href="logs.html" target="_blank" class="logs-link hidden" id="logs-profile-link">📊 ไปดู Log Dashboard →</a>
+              <a href="logs.html" target="_blank" class="logs-link hidden" id="logs-profile-link">
+                📊 ไปดู Log Dashboard →
+              </a>
             </div>
           </div>
         </div>
@@ -1055,12 +1085,20 @@
         const start = Date.now();
         try {
           const res = await fetch(url, options);
+          let parsedBody = null;
+          if (options.body) {
+            try {
+              parsedBody = JSON.parse(options.body);
+            } catch {
+              parsedBody = options.body;
+            }
+          }
           logApiCall(
             options.method || "GET",
             url,
             res.status,
             Date.now() - start,
-            options.body ? JSON.parse(options.body) : null,
+            parsedBody,
           );
           return res;
         } catch (err) {
@@ -1512,7 +1550,8 @@
 
           const initial = (u.username || u.email || "?").charAt(0).toUpperCase();
           document.getElementById("prof-avatar").textContent = initial;
-          document.getElementById("prof-name").textContent = u.display_name || u.username || "—";
+          document.getElementById("prof-name").textContent =
+            u.display_name || u.username || "—";
           document.getElementById("prof-email").textContent = u.email || "—";
           document.getElementById("prof-id").textContent = u.user_id || "—";
           document.getElementById("prof-role").textContent = u.role || "—";
@@ -1522,10 +1561,45 @@
           rb.textContent = u.role || "member";
           rb.className = `role-badge role-${u.role || "member"}`;
 
+          document.getElementById("profile-display-name").value = u.display_name || "";
+          document.getElementById("profile-bio").value = u.bio || "";
+          document.getElementById("profile-avatar-url").value = u.avatar_url || "";
+
           renderJwtInspector();
         } catch (err) {
           console.error(err);
           toast("โหลด profile ไม่สำเร็จ", "error");
+        }
+      }
+
+      async function updateProfile() {
+        const display_name = document.getElementById("profile-display-name").value.trim();
+        const bio = document.getElementById("profile-bio").value.trim();
+        const avatar_url = document.getElementById("profile-avatar-url").value.trim();
+
+        try {
+          const res = await apiFetch(`${USER_URL}/api/users/me`, {
+            method: "PUT",
+            headers: authHeaders(),
+            body: JSON.stringify({
+              display_name,
+              bio,
+              avatar_url,
+            }),
+          });
+
+          const data = await res.json();
+
+          if (!res.ok) {
+            toast(data.error || "อัปเดต profile ไม่สำเร็จ", "error");
+            return;
+          }
+
+          toast("✅ อัปเดต Profile สำเร็จ", "success");
+          loadProfile();
+        } catch (err) {
+          console.error(err);
+          toast("เชื่อมต่อ user-service ไม่สำเร็จ", "error");
         }
       }
 
@@ -1544,7 +1618,7 @@
         `;
 
         try {
-          const payload = JSON.parse(atob(parts[1]));
+          const payload = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")));
           const expDate = new Date(payload.exp * 1000);
           const nowMs = Date.now();
           const msLeft = expDate - nowMs;
