@@ -1,171 +1,185 @@
 # ENGSE207 Software Architecture  
-## README — Final Lab Set 1: Microservices + HTTPS + Lightweight Logging
+## README — Final Lab Set 2: Microservices + Database-per-Service + Cloud (Railway)
 
-> เอกสารฉบับนี้ใช้เป็น `README.md` สำหรับ repository ของ **Final Lab Set 1**  
-> นักศึกษาสามารถปรับแก้รายละเอียด เช่น ชื่อสมาชิก, ภาพ architecture, URL หรือคำอธิบายเพิ่มเติม ให้สอดคล้องกับงานจริงของกลุ่ม
+> เอกสารฉบับนี้ใช้เป็น `README.md` สำหรับ repository ของ **Final Lab Set 2**
 
 ---
 
-## 1. ข้อมูลรายวิชาและสมาชิก
+## ข้อมูลรายวิชาและสมาชิก
 
 **รายวิชา:** ENGSE207 Software Architecture  
-**ชื่องาน:** Final Lab — ชุดที่ 1: Microservices + HTTPS + Lightweight Logging  
+**ชื่องาน:** Final Lab — ชุดที่ 2: Microservices + Database-per-Service + Cloud (Railway)
 
 **สมาชิกในกลุ่ม**
 - ชื่อ-สกุล / รหัสนักศึกษา: นายไตรภพ  ก๋องใจ / 67543210017-9
 - ชื่อ-สกุล / รหัสนักศึกษา: นายนัฐพงศ์  รอดอินทร์ / 67543210020-3
 
-**Repository:** `final-lab-set1/`
+**Repository:** `https://github.com/NattapongRodin/FinalLab-set2`
 
 ---
 
-## 2. ภาพรวมของระบบ
+## ภาพรวมของระบบ
 
-Final Lab ชุดที่ 1 เป็นการพัฒนาระบบ Task Board แบบ Microservices โดยเน้นหัวข้อสำคัญดังนี้
+Final Lab ชุดที่ 2 เป็นการพัฒนาระบบ Task Board แบบ Microservices โดยเน้นหัวข้อสำคัญดังนี้
 
 - การทำงานแบบแยก service
-- การใช้ Nginx เป็น API Gateway
-- การเปิดใช้งาน HTTPS ด้วย Self-Signed Certificate
-- การยืนยันตัวตนด้วย JWT
-- การจัดเก็บ log แบบ Lightweight Logging ผ่าน Log Service
-- การเชื่อมต่อ Frontend กับ Backend ผ่าน HTTPS
+- 3 services บน Cloud: auth, task, user
+- Database-per-Service (3 DB แยก)
+- มี Register API ใน Auth Service
+- Deploy บน Railway (HTTPS อัตโนมัติ)
+- Frontend เป็น static file (Railway หรือ local)
 
 งานชุดนี้ **ไม่มี Register** และใช้เฉพาะ **Seed Users** ที่กำหนดไว้ในฐานข้อมูล
 
 ---
 
-## 3. วัตถุประสงค์ของงาน
+## วัตถุประสงค์ของงาน
 
 งานนี้มีจุดมุ่งหมายเพื่อฝึกให้นักศึกษาสามารถ
 
-- ออกแบบระบบแบบ Microservices ในระดับพื้นฐาน
-- ใช้ Nginx เป็น reverse proxy และ TLS termination
-- ใช้ JWT สำหรับ authentication ระหว่าง frontend และ backend
-- ออกแบบ logging flow ผ่าน REST API และจัดเก็บ log ลงฐานข้อมูล
-- ใช้ Docker Compose เพื่อรวมทุก service ให้ทำงานร่วมกันได้
+- ออกแบบ Database-per-Service Pattern ได้
+- ขยายระบบเดิมโดยเพิ่ม Register API และ User Service ได้
+- Deploy 3 services และ 3 databases บน Railway ได้
+- เลือกและอธิบาย Gateway Strategy สำหรับ Cloud Services ได้	
+- ทดสอบระบบแบบ end-to-end บน Cloud ได้
 
 ---
 
-## 4. Architecture Overview
+## Architecture Overview
 
 > ให้วางภาพ architecture diagram ของกลุ่มไว้ในส่วนนี้  
 > เช่น `docs/architecture-set1.png` หรือแทรกรูปจากโฟลเดอร์ `screenshots/`
 
 ```text
 Browser / Postman
-       │
-       │ HTTPS :443
-       ▼
-Nginx (API Gateway)
-   ├── /api/auth/*  → auth-service
-   ├── /api/tasks/* → task-service
-   ├── /api/logs/*  → log-service
-   └── /            → frontend
-            │
-            ▼
-     PostgreSQL (shared DB)
+        │
+        ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│   Docker Compose (Local Test)                                        │
+│                                                                      │
+│  ┌────────────────┐  ┌──────────────────┐  ┌────────────────────┐    │
+│  │ 🔑 Auth Svc    │  │ 📋 Task Svc      │  │ 👤 User Svc        │    │
+│  │   :3001        │  │   :3002          │  │   :3003            │    │
+│  │                │  │                  │  │                    │    │
+│  │ • POST register│  │ • CRUD Tasks     │  │ • GET /me          │    │
+│  │ • POST login   │  │ • JWT Guard      │  │ • PUT /me          │    │
+│  │ • GET  me      │  │ • log → auth-db  │  │ • GET / (admin)    │    │
+│  │ • GET  logs*   │  │                  │  │ • auto-create      │    │
+│  └───────┬────────┘  └────────┬─────────┘  └─────────┬──────────┘    │
+│          │                   │                       │              │
+│          ▼                   ▼                       ▼              │
+│  ┌───────────────┐  ┌────────────────────┐  ┌──────────────────────┐ │
+│  │  🗄️ auth-db   │  │  🗄️ task-db        │  │  🗄️ user-db          │ │
+│  │  :5433        │  │  :5434             │  │  :5435               │ │
+│  │  users table  │  │  tasks table       │  │  user_profiles table │ │
+│  │  logs table   │  │  logs table        │  │  logs table          │ │
+│  └───────────────┘  └────────────────────┘  └──────────────────────┘ │
+│                                                                      │
+│  JWT_SECRET ใช้ร่วมกันทุก service (ตั้งค่าใน docker-compose)           │
+└──────────────────────────────────────────────────────────────────────┘
+
+* GET /api/auth/logs — admin only (ดู logs ของ auth-service)
+)
+```
+```text
+Browser / Postman
+        │
+        │ HTTPS (Railway จัดการให้อัตโนมัติ)
+        ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│                     Railway Project                                  │
+│                                                                      │
+│  Auth Service                Task Service         User Service       │
+│  https://auth-xxx.railway.app   https://task-xxx…  https://user-xxx…  │
+│       │                            │                    │            │
+│       ▼                            ▼                    ▼            │
+│   auth-db (PostgreSQL)        task-db (PostgreSQL)  user-db (PostgreSQL) │
+│   [Railway Plugin]            [Railway Plugin]      [Railway Plugin] │
+│                                                                      │
+│  Frontend เรียกแต่ละ service โดยตรงผ่าน config.js                      │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
 ### Services ที่ใช้ในระบบ
-- **nginx** — API Gateway, HTTPS, rate limiting
 - **frontend** — หน้าเว็บ Task Board และ Log Dashboard
 - **auth-service** — Login, Verify, Me
 - **task-service** — CRUD Tasks
 - **log-service** — รับและแสดง logs
-- **postgres** — shared database
 
 ---
 
-## 5. โครงสร้าง Repository
+## โครงสร้าง Repository
 
 ```text
-final-lab-set1/
+final-lab-set2-[student1]-[student2]/
 ├── README.md
 ├── TEAM_SPLIT.md
-├── INDIVIDUAL_REPORT_[studentid].md
-├── docker-compose.yml
+├── INDIVIDUAL_REPORT_[studentid].md   (ทุกคน)
+├── docker-compose.yml                 (ใช้ทดสอบ local เท่านั้น)
 ├── .env.example
-├── nginx/
-├── frontend/
+│
 ├── auth-service/
+│   ├── Dockerfile
+│   ├── package.json
+│   ├── init.sql                       ← schema + seed users สำหรับ auth-db
+│   └── src/
+│       ├── index.js
+│       ├── db/db.js
+│       ├── middleware/jwtUtils.js
+│       └── routes/auth.js             ← เพิ่ม /register
+│
 ├── task-service/
-├── log-service/
-├── db/
-├── scripts/
+│   ├── Dockerfile
+│   ├── package.json
+│   ├── init.sql                       ← schema สำหรับ task-db
+│   └── src/
+│       ├── index.js
+│       ├── db/db.js
+│       ├── middleware/authMiddleware.js
+│       ├── middleware/jwtUtils.js
+│       └── routes/tasks.js
+│
+├── user-service/                      ← service ใหม่
+│   ├── Dockerfile
+│   ├── package.json
+│   ├── init.sql                       ← schema สำหรับ user-db
+│   └── src/
+│       ├── index.js
+│       ├── db/db.js
+│       ├── middleware/authMiddleware.js
+│       ├── middleware/jwtUtils.js
+│       └── routes/users.js
+│
+├── frontend/
+│   ├── index.html                     ← ปรับให้มี Register + ใช้ config.js
+│   ├── profile.html                   ← หน้าดู/แก้ไข profile
+│   └── config.js                      ← Service URLs
+│
 └── screenshots/
 ```
 
 ---
 
-## 6. เทคโนโลยีที่ใช้
-
-- Node.js / Express.js
-- PostgreSQL
-- Nginx
-- Docker / Docker Compose
-- HTML / CSS / JavaScript
-- JWT
-- bcryptjs
-
----
-
-## 7. การตั้งค่าและการรันระบบ
-
-### 7.1 สร้าง Self-Signed Certificate
-
-```bash
-chmod +x scripts/gen-certs.sh
-./scripts/gen-certs.sh
-```
-
-### 7.2 สร้างไฟล์ `.env`
-คัดลอกจาก `.env.example` แล้วกำหนดค่าตามต้องการ เช่น
-
-```env
-POSTGRES_DB=taskboard
-POSTGRES_USER=admin
-POSTGRES_PASSWORD=secret123
-JWT_SECRET=engse207-super-secret-change-me
-JWT_EXPIRES=1h
-```
-
-### 7.3 สร้าง bcrypt hash สำหรับ Seed Users
-ในงานชุดนี้ กลุ่มของเรากำหนดให้ **สร้าง bcrypt hash เอง** ก่อนรันระบบ
-
-ตัวอย่างคำสั่ง:
-
-```bash
-node -e "const b=require('bcryptjs'); console.log(b.hashSync('alice123',10))"
-node -e "const b=require('bcryptjs'); console.log(b.hashSync('bob456',10))"
-node -e "const b=require('bcryptjs'); console.log(b.hashSync('adminpass',10))"
-```
-
-จากนั้นนำค่าที่ได้ไปแทนในไฟล์ `db/init.sql`
-
-### 7.4 รันระบบ
+### รันระบบ
 
 ```bash
 docker compose down -v
 docker compose up --build
 ```
 
-### 7.5 เปิดใช้งานผ่าน Browser
-- Frontend: `https://localhost`
-- Log Dashboard: `https://localhost/logs.html`
-
-> หมายเหตุ: เนื่องจากใช้ self-signed certificate browser อาจขึ้นคำเตือนด้านความปลอดภัย ให้กดยอมรับเพื่อเข้าทดสอบ
+### เปิดใช้งานผ่าน Browser
+- Frontend: `https://frontend-production-295d.up.railway.app/`
+- Log Dashboard: `https://frontend-production-295d.up.railway.app/logs.html`
 
 ---
 
-## 8. Seed Users สำหรับทดสอบ
+## Seed Users สำหรับทดสอบ
 
 | Username | Email | Password | Role |
 |---|---|---|---|
 | alice | alice@lab.local | alice123 | member |
 | bob | bob@lab.local | bob456 | member |
 | admin | admin@lab.local | adminpass | admin |
-
-> หมายเหตุ: ต้อง generate bcrypt hash จริงแล้วแทนค่าลงใน `db/init.sql` ก่อน login
 
 ---
 
@@ -244,7 +258,8 @@ curl -sk $BASE/api/tasks/ -H "Authorization: Bearer $TOKEN"
 
 และรายงานรายบุคคลของสมาชิกแต่ละคนอยู่ในไฟล์:
 
-- `INDIVIDUAL_REPORT_[studentid].md`
+- `INDIVIDUAL_REPORT_TEM.md`
+- `INDIVIDUAL_REPORT_MATEE.md`
 
 ---
 
@@ -270,30 +285,4 @@ curl -sk $BASE/api/tasks/ -H "Authorization: Bearer $TOKEN"
 
 ---
 
-## 15. การต่อยอดไปยัง Set 2
-
-งาน Set 1 เป็นพื้นฐานสำคัญสำหรับ Set 2 โดยประเด็นที่จะต่อยอด ได้แก่
-
-- เพิ่ม `Register API`
-- เพิ่ม `User Service`
-- เปลี่ยนจาก shared DB ไปเป็น database-per-service
-- Deploy บน Railway Cloud
-- ออกแบบ gateway strategy สำหรับหลาย service
-
----
-
-## 16. ภาคผนวก
-
-### ไฟล์สำคัญใน repository
-- `docker-compose.yml`
-- `nginx/nginx.conf`
-- `db/init.sql`
-- `auth-service/src/routes/auth.js`
-- `task-service/src/routes/tasks.js`
-- `log-service/src/index.js`
-- `frontend/index.html`
-- `frontend/logs.html`
-
----
-
-> เอกสารฉบับนี้เป็น README สำหรับงาน Final Lab Set 1 ของกลุ่ม และจัดทำเพื่อประกอบการส่งงานในรายวิชา ENGSE207 Software Architecture
+> เอกสารฉบับนี้เป็น README สำหรับงาน Final Lab Set 2 ของกลุ่ม และจัดทำเพื่อประกอบการส่งงานในรายวิชา ENGSE207 Software Architecture
